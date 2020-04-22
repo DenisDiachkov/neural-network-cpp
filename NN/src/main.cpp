@@ -1,21 +1,57 @@
+#include "..\include\no_silly_warnings_please.h"
 #include <iostream>
 #include <cmath>
 #include "..\include\NN.hpp"
-
+#include <chrono>
+#include "..\..\mnist-master\include\mnist\mnist_reader_less.hpp"
 
 int main() {
-	
-	
-	Vector v(std::vector<real>{1,2,3});
-	std::cout << v.mean() << std::endl;
-	//std::cout << derivative([](real r) {return r * r; })(3.0L) << std::endl;
-	NN nn = NN({ 3,5, 100, 5, 2}, Function([](real r) { return 1 / (1 + exp(-r)) ; }), 4123);
-	Matrix X = Matrix(std::vector<std::vector<real>>{ {.1, .2, .3}, { .9, .3, 0 }, { 1,1,1 }});
-	Matrix Y = Matrix(std::vector<std::vector<real>>{ {1,1}, { 0.5, 0.5 }, { 0,0 }});
-	
-	nn.fit(X, Y, 1000, 10);
-	//	int t = 100; 
-	// while(t--)nn.backPropagation((Vector(std::vector<real>{.4, 0.3 }) - (nn.predict(Vector(std::vector<real>{ 1, 1 })))), 1);
 
-	std::cout << nn.predict((Vector(std::vector<real>{ 1, 1, 1 })))[0] << " " << nn.predict(Vector(std::vector<real>{ 1, 1, 1 }))[1];
+
+	// Load MNIST data
+	//mnist::MNIST_dataset<uint8_t, uint8_t> dataset = mnist::read_dataset<uint8_t, uint8_t>();
+
+	//std::cout << "Nbr of training images = " << dataset.training_images.size() << std::endl;
+	//std::cout << "Nbr of training labels = " << dataset.training_labels.size() << std::endl;
+	//std::cout << "Nbr of test images = " << dataset.test_images.size() << std::endl;
+	//std::cout << "Nbr of test labels = " << dataset.test_labels.size() << std::endl;
+
+	//std::vector<std::vector<real> >  trainX, trainY;
+
+	//const size_t DATA_SIZE = 1000;
+
+	//for (auto& img : dataset.training_images) {
+	//	trainX.push_back(std::vector<real>());
+	//	for (uint8_t& pix : img) {
+	//		trainX.back().push_back(pix / 255.0L);
+	//	}
+	//	if (trainX.size() == DATA_SIZE)
+	//		break;
+	//}
+	//for (auto& lab : dataset.training_labels) {
+	//	trainY.push_back(std::vector<real>(1, lab == 0 ? 1.0L : 0));
+	//	if (trainY.size() == DATA_SIZE)
+	//		break;
+	//}
+
+	//Matrix X(trainX), Y(trainY);
+
+	Matrix X(1000, 1), Y(1000, 1);
+	for (int i = 0; i < 1000; ++i) {
+		X[i][0] = getRandomReal();
+		Y[i][0] = (sinl(X[i][0]) + 1) / 2.0L;
+	}
+
+
+	auto start = std::chrono::steady_clock::now();
+	NN nn = NN({ X[0].size(), 100, 20,  1 }, Function([](real r) { return 1 / (1 + exp(-r)); }));
+
+	Optimizer* optimizer = new SGD(nn, 1, 0.8, 1e-16, true);
+	Loss* loss = new MSELoss();
+	nn.fit(X, Y, 200, 100, optimizer, loss);
+	auto end = std::chrono::steady_clock::now();
+
+	std::cout << nn.predict(Vector(1, acos(-1) / 4))[0] << std::endl;
+
+	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " milliseconds elapsed\n";
 }

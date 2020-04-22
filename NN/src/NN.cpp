@@ -1,47 +1,69 @@
 #include "..\include\NN.hpp"
-#include <iostream>
 
-NN::NN(std::vector<int> sizes, const Function& activation, int seed) {
-	/*TODO alloc*/
-	for (int i = 0; i < sizes.size() - 1; ++i)
-		layers.push_back(Layer(sizes[i], sizes[i + 1], activation, seed));
-	layers.push_back(Layer(sizes.back(), 0, activation, seed));
+NN::NN(std::vector<size_t> sizes, const Function& activation) {
+	layers.reserve(sizes.size());
+	for (size_t i = 0; i < sizes.size() - 1; ++i)
+		layers.push_back(std::move(Layer(sizes[i], sizes[i + 1], activation)));
+	layers.push_back(std::move(Layer(sizes.back(), 0, activation)));
 }
 
 void NN::feedForward(Vector input) {
+#ifdef __123_NN_DEBUG
 	assert(input.size() == layers.begin()->size());
-	for (int i = 0; i < this->layers.size() - 1; ++i) {
-		input = layers[i].feed(input);
+#endif
+	for (size_t i = 0; i < this->layers.size() - 1; ++i) {
+		input = layers[i].feed(input); 
 	}
 	layers.back().values = input;
 }
 
-Vector NN::predict(Vector input) {
-	feedForward(input);
-	return layers.back().values;
+Vector NN::predict(Vector input) const {
+	for (size_t i = 0; i < this->layers.size() - 1; ++i) {
+		input = layers[i].estimateValues(input);
+	}
+	return this->layers.back().activation(input);
 }
 
-void NN::backPropagation(Vector loss, real lr) {
-	for (int i = layers.size() - 2; i >= 0; --i) {
-		loss *= layers.back().activation.derivative()(layers[i + 1].values);
-		layers[i].estimateGradients(loss, layers[i + 1].values);
-		layers[i].changeWeights(lr);
+Vector NN::getOutput() const
+{
+	return this->layers.back().activation(this->layers.back().values);
+}
 
-		loss = layers[i].estimateError(loss, layers[i + 1].values);
+void NN::backPropagation(Vector loss) {
+#ifdef __123_NN_DEBUG
+	assert(layers.size() > 1U);
+#endif
+	for(size_t i = layers.size() - 1; i --> 0;) {
+		loss *= layers.back().activation.derivative()(layers[i + 1].values);
+		layers[i].estimateGradients(loss);
+
+		loss = layers[i].estimateError(loss);
 	}
 }
 
-void NN::fit(const Matrix& trainX, const Matrix& trainY, int epochs, real lr) {
+void NN::fit(const Matrix& trainX, const Matrix& trainY, int epochs, int batch_size, Optimizer *optimizer, Loss *loss) {
+#ifdef __123_NN_DEBUG
 	assert(trainX.size()[0] == trainY.size()[0]);
-	for (int epoch = 1; epoch <= epochs; ++epoch) {
-		Vector loss;
+#endif
+	optimizer->lr /= batch_size;
+	const size_t DATA_SIZE = trainX.size()[0];
+	for(size_t epoch = 1; epoch <= epochs; ++epoch) {
 		real avg_loss = 0;
-		for (int i = 0; i < trainX.size()[0]; ++i) {
-			avg_loss += (loss = (trainY[i] - this->predict(trainX[i]))).abs().mean();
-			this->backPropagation(loss, lr);
+		for(size_t i = 0; i < DATA_SIZE; i += batch_size) {
+			real batch_loss = 0;
+			for(size_t j = i; j < std::min(i + batch_size, DATA_SIZE); ++j) {
+				this->feedForward(trainX[j]);
+				Vector diff = this->getOutput() - trainY[j];
+				this->backPropagation(loss->derivative(diff));
+				avg_loss += (*loss)(diff);
+				batch_loss += (*loss)(diff);
+			}
+			optimizer->step();
+			optimizer->zero_grad();
+			printf("\r%.15f of the %zu epoch, batch loss = %.15f", i * 100.L / DATA_SIZE, epoch, batch_loss / batch_size);
 		}
 		avg_loss /= trainX.size()[0];
-		std::cout << "Epoch #" << epoch << " \tAvgLoss: " << avg_loss << std::endl;
+		std::cout << "\tEpoch #" << epoch << " \tAvgLoss: " << avg_loss << std::endl;
 	}
-
+	optimizer->lr *= batch_size;
 }

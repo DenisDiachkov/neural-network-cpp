@@ -7,10 +7,14 @@ class Function {
 private:
 	std::function<real(real)> fun;
 public:
+	Function();
 	Function(const std::function<real(real)>& f);
 	Function(const Function& fun);
 	real operator()(const real& x) const;
 	Vector operator()(const Vector& x) const;
-	Function derivative();
+	Function derivative() const;
 };
+
+
+
 
