@@ -341,3 +341,6 @@ healthchecksdb
 /NN/NN.vcxproj
 /NN/NN.vcxproj.filters
 /NN.sln
+/neural-network-cpp.sln
+/neural-network-cpp.vcxproj
+/neural-network-cpp.vcxproj.filters

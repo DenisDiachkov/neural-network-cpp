@@ -3,7 +3,7 @@
 #include <cmath>
 #include "..\include\NN.hpp"
 #include <chrono>
-#include "..\..\mnist-master\include\mnist\mnist_reader_less.hpp"
+//#include "..\..\mnist-master\include\mnist\mnist_reader_less.hpp"
 
 int main() {
 
